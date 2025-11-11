@@ -94,5 +94,62 @@ namespace CardGame
                 FindObjectOfType<GameManager>().CardClicked(this);
             }
         }
+        public void FlipForLoad()
+        {
+            if (flipCoroutine != null)
+            {
+                StopCoroutine(flipCoroutine);
+            }
+            flipCoroutine = StartCoroutine(FlipCardForLoad());
+        }
+        private IEnumerator FlipCardForLoad()
+        {
+
+            float duration = 0.8f;
+            float elapsedTime = 0f;
+            Quaternion originalRotation = transform.localRotation;
+
+
+            while (elapsedTime < duration / 2)
+            {
+                elapsedTime += Time.deltaTime;
+                float t = elapsedTime / (duration / 2);
+                transform.localRotation = Quaternion.Slerp(originalRotation, originalRotation * Quaternion.Euler(0, 90, 0), t);
+                yield return null;
+            }
+
+            cardImage.sprite = isFaceUp ? faceSprite : backSprite;
+
+
+            transform.localRotation = originalRotation * Quaternion.Euler(0, 90, 0);
+
+            elapsedTime = 0f;
+            while (elapsedTime < duration / 2)
+            {
+                elapsedTime += Time.deltaTime;
+                float t = elapsedTime / (duration / 2);
+                transform.localRotation = Quaternion.Slerp(originalRotation * Quaternion.Euler(0, 90, 0), originalRotation, t);
+                yield return null;
+            }
+
+
+            transform.localRotation = originalRotation;
+            Notify(this, CardEvent.Flipped);
+        }
+        public void InitializeCardSprite()
+        {
+            if (cardImage == null)
+            {
+                cardImage = GetComponent<Image>();
+            }
+            if (isFaceUp)
+            {
+                cardImage.sprite = faceSprite;
+            }
+            else
+            {
+                cardImage.sprite = backSprite;
+            }
+        }
     }
 }

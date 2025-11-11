@@ -15,7 +15,9 @@ namespace CardGame
         public GameObject gameCompletedPanel;
         public Button startButton;
         public Button homeButton;
+        public Button nextButton;
         public Button closeButton;
+        public Button loadButton;
         public TMP_InputField rowsInputField, columnsInputField;
         public int rows = 2;
         public int columns = 2;
@@ -45,6 +47,9 @@ namespace CardGame
 
         private AudioSource audioSource;
 
+        private bool isGameCompleted = false;
+        public bool IsGameCompleted() => isGameCompleted;
+
         void Start()
         {
             if (startButton != null)
@@ -55,9 +60,17 @@ namespace CardGame
             {
                 homeButton.onClick.AddListener(Home);
             }
-            if (homeButton != null)
+            if (closeButton != null)
             {
                 closeButton.onClick.AddListener(CloseGame);
+            }
+            if (nextButton != null)
+            {
+                nextButton.onClick.AddListener(NextGame);
+            }
+            if (loadButton != null)
+            {
+                loadButton.onClick.AddListener(LoadGame);
             }
             audioSource = GetComponent<AudioSource>();
         }
@@ -115,11 +128,8 @@ namespace CardGame
         }
         public void Home()
         {
+            SaveGame();
             ResetGame();
-            gridManager.ResetGrid();
-            menuPanel.SetActive(true);
-            gameCompletedPanel.SetActive(false);
-            gameplayPanel.SetActive(false);
         }
         public void CloseGame()
         {
@@ -197,6 +207,7 @@ namespace CardGame
             int totalPairs = FindObjectsOfType<Card>().Length / 2;
             if (matchedPairs == totalPairs)
             {
+                isGameCompleted = true;
                 ShowGameCompletedPanel();
             }
         }
@@ -213,8 +224,8 @@ namespace CardGame
             if (scoreText != null)
             {
                 scoreText.text = comboMultiplier > 1
-                    ? $"Match Score: {matchesFound} (x{comboMultiplier} Combo!)"
-                    : $"Match Score: {matchesFound}";
+                    ? $"Matched: {matchesFound} (x{comboMultiplier} Combo!)"
+                    : $"Matched: {matchesFound}";
             }
         }
         private void ShowComboText(string message)
@@ -245,15 +256,27 @@ namespace CardGame
         public void ResetGame()
         {
             matchesFound = 0;
+            matchedPairs = 0;
             comboStreak = 0;
             comboMultiplier = 1;
-            matchedPairs = 0;
             matchedCardIds.Clear();
             cardClickQueue.Clear();
             isComparing = false;
+            isGameCompleted = false;
+
             UpdateScoreText();
+            ShowComboText("");
             if (gameCompletedPanel != null)
                 gameCompletedPanel.SetActive(false);
+
+            GridManager gridManager = FindObjectOfType<GridManager>();
+            if (gridManager != null)
+            {
+                gridManager.ResetGrid();
+            }
+            menuPanel.SetActive(true);
+            gameCompletedPanel.SetActive(false);
+            gameplayPanel.SetActive(false);
         }
         private void PlayAudio(AudioClip clip)
         {
@@ -262,6 +285,90 @@ namespace CardGame
                 audioSource.PlayOneShot(clip);
             }
         }
+        public int GetScore() => matchedPairs;
 
+        public List<int> GetMatchedCardIds() => matchedCardIds;
+
+        public void RestoreGameState(SaveData data)
+        {
+            matchedPairs = data.score;
+            matchesFound = data.score;
+
+            comboStreak = 0;
+            comboMultiplier = 1;
+
+            matchedCardIds.Clear();
+            foreach (var cardData in data.cards)
+                if (cardData.isFaceUp)
+                    matchedCardIds.Add(cardData.id);
+
+            UpdateScoreText();          
+            CheckForGameCompletion();  
+        }
+
+        public void SaveGame()
+        {
+            SaveLoadManager.SaveGame(gridManager, this);
+        }
+        public void LoadGame()
+        {
+            menuPanel.SetActive(false);
+            gameplayPanel.SetActive(true);
+            SaveLoadManager.LoadGame(gridManager, this);
+        }
+
+        private void OnApplicationQuit()
+        {
+            StartCoroutine(SaveBeforeQuit());
+        }
+
+        private IEnumerator SaveBeforeQuit()
+        {
+            SaveLoadManager.SaveGame(gridManager, this);
+            yield return new WaitForSeconds(0.1f); 
+        }
+
+
+        private void OnApplicationPause(bool pauseStatus)
+        {
+            if (pauseStatus)
+            {
+                SaveGame();
+            }
+        }
+
+        public void NextGame()
+        {
+            if (gameCompletedPanel != null)
+                gameCompletedPanel.SetActive(false);
+
+            int newRows, newCols;
+            do
+            {
+                newRows = Random.Range(2, 11);
+                newCols = Random.Range(2, 11);
+            } while ((newRows * newCols) % 2 != 0);
+
+            rows = newRows;
+            columns = newCols;
+
+            matchesFound = 0;
+            matchedPairs = 0;
+            comboStreak = 0;
+            comboMultiplier = 1;
+            matchedCardIds.Clear();
+            cardClickQueue.Clear();
+            isComparing = false;
+            isGameCompleted = false;
+
+            UpdateScoreText();
+            ShowComboText("");
+            menuPanel.SetActive(false);
+            gameplayPanel.SetActive(true);
+
+            gridManager.SetupGridLayout(rows, columns);
+            gridManager.CreateGrid(rows, columns);
+
+        }
     }
 }

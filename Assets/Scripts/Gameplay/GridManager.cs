@@ -76,7 +76,6 @@ namespace CardGame
             }
             LayoutRebuilder.ForceRebuildLayoutImmediate(gridContainer.GetComponent<RectTransform>());
         }
-
         public void SetupGridLayout(int rows, int columns)
         {
             gridLayoutGroup = gridContainer.GetComponent<GridLayoutGroup>();
@@ -114,7 +113,6 @@ namespace CardGame
             gridLayoutGroup.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             gridLayoutGroup.constraintCount = columns;
         }
-
         private void Shuffle(List<int> list)
         {
             System.Random rand = new System.Random();
@@ -127,7 +125,6 @@ namespace CardGame
                 list[k] = temp;
             }
         }
-
         public void ResetGrid()
         {
             foreach (Transform child in gridContainer)
@@ -135,6 +132,52 @@ namespace CardGame
                 Destroy(child.gameObject);
             }
             prefabIDs.Clear();
+        }
+        public void RestoreGrid(SaveData data, GameManager gameManager)
+        {
+            if (data == null)
+            {
+                return;
+            }
+            if (data.cards == null)
+            {
+                return;
+            }
+
+            ResetGrid();
+            gameManager.rows = data.rows;
+            gameManager.columns = data.columns;
+            SetupGridLayout(gameManager.rows, gameManager.columns);
+
+            var instantiatedCards = new List<Card>(data.cards.Count);
+
+            foreach (var cardData in data.cards)
+            {
+                var prefab = cardPrefabs.FirstOrDefault(p => p.name == cardData.prefabName);
+               
+                var cardObj = Instantiate(prefab, gridContainer);
+                var card = cardObj.GetComponent<Card>();
+               
+                card.id = cardData.id;
+                card.isFaceUp = cardData.isFaceUp;
+                card.InitializeCardSprite();
+
+                instantiatedCards.Add(card);
+
+                if (cardData.isFaceUp)
+                {
+                    gameManager.GetMatchedCardIds().Add(card.id);
+                }
+            }
+
+            foreach (var card in instantiatedCards)
+            {
+                if (card.isFaceUp)
+                    card.FlipForLoad();
+            }
+            var gridRect = gridContainer as RectTransform;
+            if (gridRect != null)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(gridRect);
         }
     }
 }
