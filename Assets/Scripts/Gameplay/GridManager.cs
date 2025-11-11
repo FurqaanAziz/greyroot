@@ -70,6 +70,8 @@ namespace CardGame
                 {
                     GameObject cardInstance = Instantiate(cardPrefabs.Find(p => p.name == prefabName), gridContainer);
                     Card card = cardInstance.GetComponent<Card>();
+                    card.id = cardId;
+                    
                 }
             }
             LayoutRebuilder.ForceRebuildLayoutImmediate(gridContainer.GetComponent<RectTransform>());

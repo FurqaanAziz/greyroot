@@ -7,14 +7,25 @@ using UnityEngine.UI;
 
 namespace CardGame
 {
-    public class Card : MonoBehaviour, IPointerClickHandler
+    public enum CardEvent
     {
+        Flipped,
+        Matched,
+        Mismatched
+    }
+    public class Card : MonoBehaviour, IPointerClickHandler, ISubject
+    {
+        public int id;
         public bool isFaceUp = false;
         public Sprite faceSprite;
         public Sprite backSprite;
         private Image cardImage;
         private Coroutine flipCoroutine;
 
+        private List<IObserver> observers = new List<IObserver>();
+        public void Attach(IObserver observer) => observers.Add(observer);
+
+        public CardEvent currentEvent;
         void Start()
         {
             cardImage = GetComponent<Image>();
@@ -28,6 +39,11 @@ namespace CardGame
         }
         public void Flip()
         {
+            if (currentEvent == CardEvent.Mismatched)
+            {
+                Debug.Log("here over flipped check");
+                return;
+            }
             if (flipCoroutine != null)
             {
                 StopCoroutine(flipCoroutine);
@@ -63,12 +79,19 @@ namespace CardGame
             }
             transform.localRotation = Quaternion.identity;
         }
-
+        public void Notify(Card card, CardEvent cardEvent)
+        {
+            foreach (var observer in observers)
+            {
+                observer.OnNotify(card, cardEvent);
+            }
+        }
         public void OnPointerClick(PointerEventData eventData)
         {
             if (!isFaceUp)
             {
                 Flip();
+                FindObjectOfType<GameManager>().CardClicked(this);
             }
         }
     }

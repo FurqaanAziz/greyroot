@@ -12,6 +12,7 @@ namespace CardGame
         public GridManager gridManager;
         public GameObject menuPanel;
         public GameObject gameplayPanel;
+        public GameObject gameCompletedPanel;
         public Button startButton;
         public Button homeButton;
         public Button closeButton;
@@ -19,6 +20,16 @@ namespace CardGame
         public int rows = 2;
         public int columns = 2;
         public TMP_Text warning;
+
+        private Queue<Card> cardClickQueue = new Queue<Card>();
+        private bool isComparing = false;
+
+        private int matchedPairs = 0;
+
+        private List<int> matchedCardIds = new List<int>();
+
+        public TMP_Text scoreText;
+
 
         void Start()
         {
@@ -89,13 +100,101 @@ namespace CardGame
         }
         public void Home()
         {
+            ResetGame();
             gridManager.ResetGrid();
             menuPanel.SetActive(true);
+            gameCompletedPanel.SetActive(false);
             gameplayPanel.SetActive(false);
         }
         public void CloseGame()
         {
             Application.Quit();
         }
+
+        #region check cards
+        public void CardClicked(Card clickedCard)
+        {
+            if (clickedCard == null || clickedCard.isFaceUp || cardClickQueue.Contains(clickedCard))
+                return;
+            cardClickQueue.Enqueue(clickedCard);
+            TryProcessQueue();
+        }
+        private void TryProcessQueue()
+        {
+            if (isComparing || cardClickQueue.Count < 2)
+                return;
+
+            Card first = cardClickQueue.Dequeue();
+            Card second = cardClickQueue.Dequeue();
+
+            StartCoroutine(CheckCards(first, second));
+        }
+        private IEnumerator CheckCards(Card first, Card second)
+        {
+            isComparing = true;
+
+
+            if (!first.isFaceUp) first.Flip();
+            if (!second.isFaceUp) second.Flip();
+
+
+            yield return new WaitForSeconds(0.5f);
+
+            if (first.id == second.id)
+            {
+                matchedPairs++;
+                matchedCardIds.Add(first.id);
+
+                UpdateScoreText();
+                CheckForGameCompletion();
+                first.Notify(first, CardEvent.Matched);
+                second.Notify(second, CardEvent.Matched);
+            }
+            else
+            {
+                first.Notify(first, CardEvent.Mismatched);
+                second.Notify(second, CardEvent.Mismatched);
+                yield return new WaitForSeconds(0.1f);
+
+                first.Flip();
+                second.Flip();
+            }
+
+            isComparing = false;
+            TryProcessQueue();
+        }
+        private void CheckForGameCompletion()
+        {
+            int totalPairs = FindObjectsOfType<Card>().Length / 2;
+            if (matchedPairs == totalPairs)
+            {
+                ShowGameCompletedPanel();
+            }
+        }
+        private void ShowGameCompletedPanel()
+        {
+            if (gameCompletedPanel != null)
+            {
+                gameCompletedPanel.SetActive(true);
+            }
+        }
+        private void UpdateScoreText()
+        {
+            if (scoreText != null)
+            {
+                scoreText.text = $"Matches: {matchedPairs}";
+            }
+        }
+        public void ResetGame()
+        {
+            matchedPairs = 0;
+            matchedCardIds.Clear();
+            cardClickQueue.Clear();
+            isComparing = false;
+            UpdateScoreText();
+            if (gameCompletedPanel != null)
+                gameCompletedPanel.SetActive(false);
+        }
+        #endregion
     }
 }
