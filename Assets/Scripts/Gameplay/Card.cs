@@ -26,6 +26,8 @@ namespace CardGame
         public void Attach(IObserver observer) => observers.Add(observer);
 
         public CardEvent currentEvent;
+
+        private Coroutine flashCoroutine;
         void Start()
         {
             cardImage = GetComponent<Image>();
@@ -150,6 +152,40 @@ namespace CardGame
             {
                 cardImage.sprite = backSprite;
             }
+        }
+        public void PlayMatchFlash()
+        {
+            if (flashCoroutine != null)
+                StopCoroutine(flashCoroutine);
+
+            flashCoroutine = StartCoroutine(FlashColor());
+        }
+
+        private IEnumerator FlashColor()
+        {
+            if (cardImage == null)
+                cardImage = GetComponent<Image>();
+
+            Color original = cardImage.color;
+            Color flash = new Color(0.6f, 1f, 0.6f, 1f); 
+            float duration = 0.25f;
+            float t = 0f;
+
+            while (t < duration)
+            {
+                t += Time.deltaTime;
+                cardImage.color = Color.Lerp(original, flash, t / duration);
+                yield return null;
+            }
+            t = 0f;
+            while (t < duration)
+            {
+                t += Time.deltaTime;
+                cardImage.color = Color.Lerp(flash, original, t / duration);
+                yield return null;
+            }
+
+            cardImage.color = original;
         }
     }
 }

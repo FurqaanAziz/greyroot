@@ -49,7 +49,9 @@ namespace CardGame
 
         private bool isGameCompleted = false;
         public bool IsGameCompleted() => isGameCompleted;
-
+        public int GetMatchesFound() => matchesFound;
+        public int GetComboStreak() => comboStreak;
+        public int GetComboMultiplier() => comboMultiplier;
         void Start()
         {
             if (startButton != null)
@@ -168,6 +170,9 @@ namespace CardGame
 
             if (first.id == second.id)
             {
+                first.PlayMatchFlash();
+                second.PlayMatchFlash();
+
                 comboStreak++;
                 comboMultiplier = comboStreak >= 2 ? comboStreak : 1;
 
@@ -294,8 +299,8 @@ namespace CardGame
             matchedPairs = data.score;
             matchesFound = data.score;
 
-            comboStreak = 0;
-            comboMultiplier = 1;
+            comboStreak = data.comboStreak;
+            comboMultiplier = Mathf.Max(1, data.comboMultiplier);
 
             matchedCardIds.Clear();
             foreach (var cardData in data.cards)

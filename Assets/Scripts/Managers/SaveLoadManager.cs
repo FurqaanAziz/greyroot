@@ -21,6 +21,10 @@ namespace CardGame
         public int score;
         public bool isGameCompleted;
         public List<CardData> cards = new List<CardData>();
+
+        public int matchesFound;     
+        public int comboStreak;
+        public int comboMultiplier;
     }
      
 
@@ -35,7 +39,11 @@ namespace CardGame
                 rows = gameManager.rows,
                 columns = gameManager.columns,
                 score = gameManager.GetScore(),
-                isGameCompleted = gameManager.IsGameCompleted()
+                isGameCompleted = gameManager.IsGameCompleted(),
+
+                 matchesFound = gameManager.GetMatchesFound(),
+                comboStreak = gameManager.GetComboStreak(),
+                comboMultiplier = gameManager.GetComboMultiplier()
             };
 
             List<int> matchedIds = gameManager.GetMatchedCardIds();
