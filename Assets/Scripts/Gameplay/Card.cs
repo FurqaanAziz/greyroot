@@ -186,6 +186,8 @@ namespace CardGame
             }
 
             cardImage.color = original;
+            yield return new WaitForSeconds(0.5f);
+            cardImage.enabled = false;
         }
     }
 }

@@ -31,6 +31,7 @@ namespace CardGame
         private List<int> matchedCardIds = new List<int>();
 
         public TMP_Text scoreText;
+        public TMP_Text movesText;
 
         public TMP_Text comboText;
         public GameObject comboObject;
@@ -52,6 +53,9 @@ namespace CardGame
         public int GetMatchesFound() => matchesFound;
         public int GetComboStreak() => comboStreak;
         public int GetComboMultiplier() => comboMultiplier;
+
+        private int moves = 0;
+        public int GetMoves() => moves;
         void Start()
         {
             if (startButton != null)
@@ -78,56 +82,31 @@ namespace CardGame
         }
         public void StartGame()
         {
-            if (string.IsNullOrEmpty(rowsInputField.text) || string.IsNullOrEmpty(columnsInputField.text))
-            {
-                warning.text = "Rows and columns fields cannot be empty!";
-                warning.gameObject.SetActive(true);
-                Invoke("WarningTextDeactivate", 3f);
-                return;
-            }
-
-            rows = int.Parse(rowsInputField.text);
-            columns = int.Parse(columnsInputField.text);
-
-            if (!IsGridValid(rows, columns))
-            {
-                if (rows >= 10 || columns >= 10)
-                {
-                    warning.text = ($"Grid exceeding limit of 10 x 10");
-                }
-                else if (rows <= 10 || columns <= 10)
-                {
-                    warning.text = ($"Invalid grid: {rows} x {columns} = {rows * columns} cards. Result Must be even.");
-                }
-                else
-                {
-                    warning.text = ($"Grid exceeding limit of 10 x 10");
-                }
-                warning.gameObject.SetActive(true);
-                Invoke("WarningTextDeactivate", 3f);
-                return;
-            }
+            GenerateRandomGrid(out rows, out columns);
 
             gridManager.SetupGridLayout(rows, columns);
             gridManager.CreateGrid(rows, columns);
 
+            
             menuPanel.SetActive(false);
             gameplayPanel.SetActive(true);
-        }
-        private bool IsGridValid(int rows, int columns)
-        {
-            if (rows < 2 || rows > 10 || columns < 2 || columns > 10)
-            {
-                warning.text = "Rows and columns must be between 2x2 and 10x10";
-                return false;
-            }
 
-            return (rows * columns) % 2 == 0;
+            StartCoroutine(RevealAllCardsOnce());
         }
-        private void WarningTextDeactivate()
-        {
-            warning.gameObject.SetActive(false);
-        }
+        //private bool IsGridValid(int rows, int columns)
+        //{
+        //    if (rows < 2 || rows > 10 || columns < 2 || columns > 10)
+        //    {
+        //        warning.text = "Rows and columns must be between 2x2 and 10x10";
+        //        return false;
+        //    }
+
+        //    return (rows * columns) % 2 == 0;
+        //}
+        //private void WarningTextDeactivate()
+        //{
+        //    warning.gameObject.SetActive(false);
+        //}
         public void Home()
         {
             SaveGame();
@@ -167,6 +146,9 @@ namespace CardGame
 
 
             yield return new WaitForSeconds(0.5f);
+
+            moves++;
+            UpdateMovesText();
 
             if (first.id == second.id)
             {
@@ -233,6 +215,11 @@ namespace CardGame
                     : $"Matched: {matchesFound}";
             }
         }
+        private void UpdateMovesText()
+        {
+            if (movesText != null)
+                movesText.text = $"Moves: {moves}";
+        }
         private void ShowComboText(string message)
         {
             if (comboText != null)
@@ -263,12 +250,15 @@ namespace CardGame
             matchesFound = 0;
             matchedPairs = 0;
             comboStreak = 0;
+            moves = 0;
             comboMultiplier = 1;
             matchedCardIds.Clear();
             cardClickQueue.Clear();
             isComparing = false;
             isGameCompleted = false;
 
+            
+            UpdateMovesText();
             UpdateScoreText();
             ShowComboText("");
             if (gameCompletedPanel != null)
@@ -298,6 +288,8 @@ namespace CardGame
         {
             matchedPairs = data.score;
             matchesFound = data.score;
+            moves = data.moves;    
+            
 
             comboStreak = data.comboStreak;
             comboMultiplier = Mathf.Max(1, data.comboMultiplier);
@@ -307,12 +299,16 @@ namespace CardGame
                 if (cardData.isFaceUp)
                     matchedCardIds.Add(cardData.id);
 
-            UpdateScoreText();          
+            UpdateScoreText();
+            UpdateMovesText();
             CheckForGameCompletion();  
         }
 
         public void SaveGame()
         {
+            if (matchedPairs <= 0)
+                return;
+
             SaveLoadManager.SaveGame(gridManager, this);
         }
         public void LoadGame()
@@ -324,7 +320,8 @@ namespace CardGame
 
         private void OnApplicationQuit()
         {
-            StartCoroutine(SaveBeforeQuit());
+            if (matchedPairs > 0)
+                StartCoroutine(SaveBeforeQuit());
         }
 
         private IEnumerator SaveBeforeQuit()
@@ -347,33 +344,64 @@ namespace CardGame
             if (gameCompletedPanel != null)
                 gameCompletedPanel.SetActive(false);
 
-            int newRows, newCols;
-            do
-            {
-                newRows = Random.Range(2, 11);
-                newCols = Random.Range(2, 11);
-            } while ((newRows * newCols) % 2 != 0);
+            GenerateRandomGrid(out rows, out columns);
 
-            rows = newRows;
-            columns = newCols;
+            ResetGameStateForNewGrid();
 
+            gridManager.SetupGridLayout(rows, columns);
+            gridManager.CreateGrid(rows, columns);
+            StartCoroutine(RevealAllCardsOnce());
+        }
+        private void ResetGameStateForNewGrid()
+        {
             matchesFound = 0;
             matchedPairs = 0;
             comboStreak = 0;
             comboMultiplier = 1;
+            moves = 0;
             matchedCardIds.Clear();
             cardClickQueue.Clear();
             isComparing = false;
             isGameCompleted = false;
 
             UpdateScoreText();
+            UpdateMovesText();
             ShowComboText("");
-            menuPanel.SetActive(false);
-            gameplayPanel.SetActive(true);
+        }
 
-            gridManager.SetupGridLayout(rows, columns);
-            gridManager.CreateGrid(rows, columns);
+        private void GenerateRandomGrid(out int rows, out int columns, int min = 2, int max = 6)
+        {
+            do
+            {
+                rows = Random.Range(min, max + 1);
+                columns = Random.Range(min, rows + 1);
 
+            } while ((rows * columns) % 2 != 0);
+        }
+        private IEnumerator RevealAllCardsOnce()
+        {
+            isComparing = true;
+
+            Card[] allCards = FindObjectsOfType<Card>();
+
+            foreach (var card in allCards)
+            {
+                if (card == null || card.gameObject == null) continue;
+                if (!card.isFaceUp)
+                    card.Flip();
+            }
+
+            yield return new WaitForSeconds(1.5f);
+
+            foreach (var card in allCards)
+            {
+                if (card == null || card.gameObject == null) continue;
+                if (card.isFaceUp)
+                    card.Flip();
+            }
+
+            yield return new WaitForSeconds(0.5f);
+            isComparing = false;
         }
     }
 }

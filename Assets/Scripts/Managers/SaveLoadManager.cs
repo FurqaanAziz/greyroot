@@ -19,6 +19,7 @@ namespace CardGame
         public int rows;
         public int columns;
         public int score;
+        public int moves;
         public bool isGameCompleted;
         public List<CardData> cards = new List<CardData>();
 
@@ -40,8 +41,9 @@ namespace CardGame
                 columns = gameManager.columns,
                 score = gameManager.GetScore(),
                 isGameCompleted = gameManager.IsGameCompleted(),
+                moves = gameManager.GetMoves(),
 
-                 matchesFound = gameManager.GetMatchesFound(),
+                matchesFound = gameManager.GetMatchesFound(),
                 comboStreak = gameManager.GetComboStreak(),
                 comboMultiplier = gameManager.GetComboMultiplier()
             };
